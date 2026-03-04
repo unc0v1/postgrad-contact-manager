@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  nickname  String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  professors     Professor[]
+  tags           Tag[]
+  emailTemplates EmailTemplate[]
+  reminders      Reminder[]
+  notes          Note[]
+}
+
+model Professor {
+  id                String   @id @default(cuid())
+  userId            String
+  name              String
+  university        String
+  college           String
+  title             String   @default("PROFESSOR")
+  researchArea      String
+  email             String?
+  phone             String?
+  homepage          String?
+  wechat            String?
+  schoolRating      String?  @default("B")
+  reputationScore   Int?     @default(0)
+  reputationComment String?
+  contactStatus     String   @default("NOT_CONTACTED")
+  priority          Int      @default(0)
+  source            String?
+  enrollmentQuota   Int?
+  acceptingStudents Boolean  @default(true)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user           User              @relation(fields: [userId], references: [id])
+  interviews     Interview[]
+  tags           TagOnProfessor[]
+  reminders      Reminder[]
+  noteItems      Note[]
+  statusLogs     StatusLog[]
+  communications Communication[]
+}
+
+model Interview {
+  id               String   @id @default(cuid())
+  professorId      String
+  scheduledAt      DateTime
+  duration         Int?     @default(30)
+  method           String   @default("ONLINE")
+  location         String?
+  meetingLink      String?
+  status           String   @default("SCHEDULED")
+  preparationNotes String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  professor Professor      @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  logs      InterviewLog[]
+}
+
+model InterviewLog {
+  id             String   @id @default(cuid())
+  interviewId    String
+  content        String
+  selfRating     Int?
+  mood           String?
+  questionsAsked String?
+  keyTakeaways   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  color  String @default("#4F8EF7")
+
+  user       User             @relation(fields: [userId], references: [id])
+  professors TagOnProfessor[]
+}
+
+model TagOnProfessor {
+  professorId String
+  tagId       String
+
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([professorId, tagId])
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  subject   String
+  content   String
+  category  String   @default("FIRST_CONTACT")
+  isPreset  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Reminder {
+  id          String   @id @default(cuid())
+  userId      String
+  professorId String?
+  title       String
+  description String?
+  remindAt    DateTime
+  type        String   @default("FOLLOW_UP")
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user      User       @relation(fields: [userId], references: [id])
+  professor Professor? @relation(fields: [professorId], references: [id], onDelete: SetNull)
+}
+
+model Note {
+  id          String   @id @default(cuid())
+  userId      String
+  professorId String?
+  title       String
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id])
+  professor Professor? @relation(fields: [professorId], references: [id], onDelete: SetNull)
+}
+
+model StatusLog {
+  id          String   @id @default(cuid())
+  professorId String
+  fromStatus  String
+  toStatus    String
+  remark      String?
+  createdAt   DateTime @default(now())
+
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+}
+
+model Communication {
+  id           String    @id @default(cuid())
+  professorId  String
+  type         String    @default("EMAIL")
+  subject      String?
+  content      String?
+  sentAt       DateTime  @default(now())
+  isReplied    Boolean   @default(false)
+  repliedAt    DateTime?
+  replyContent String?
+
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+}
