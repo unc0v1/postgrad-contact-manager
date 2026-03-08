@@ -6,7 +6,7 @@
 
 | Version | Supported |
 | --- | --- |
-| main / master | :white_check_mark: |
+| main | :white_check_mark: |
 | 旧历史版本 | :x: |
 
 ## Reporting a Vulnerability

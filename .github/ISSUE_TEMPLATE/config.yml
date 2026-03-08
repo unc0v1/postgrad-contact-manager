@@ -1,1 +1,8 @@
 blank_issues_enabled: false
+contact_links:
+  - name: 使用问题 / 交流讨论
+    url: https://github.com/wzyn20051216/postgrad-contact-manager/discussions
+    about: 部署问题、使用方法、产品思路和经验分享请优先发到 Discussions
+  - name: 安全问题反馈
+    url: https://github.com/wzyn20051216/postgrad-contact-manager/blob/main/SECURITY.md
+    about: 漏洞披露前请先阅读安全策略，不要在公开 Issue 直接暴露细节

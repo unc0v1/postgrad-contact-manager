@@ -4,6 +4,20 @@
 
 格式参考 Keep a Changelog，版本号遵循语义化版本约定。
 
+## [Unreleased]
+
+### Added
+
+- 补充 `SUPPORT.md`，明确使用问题、Bug、功能建议与安全问题的反馈入口
+- 补充 `docs/architecture.md`，说明系统模块职责、数据流与部署边界
+- 引入 `Dependabot` 配置，自动跟踪 npm 与 GitHub Actions 依赖更新
+
+### Changed
+
+- 优化 README 顶部展示，加入社交预览图、开源徽章、在线访问地址与社区入口链接
+- 优化 GitHub Issue 提交流程，将使用交流与安全问题引导到更合适的渠道
+- 优化 CI 流程，仅围绕 `main` 分支执行，并增加并发控制与手动触发能力
+
 ## [0.1.0] - 2026-03-08
 
 ### Added
