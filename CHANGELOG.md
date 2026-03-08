@@ -18,6 +18,7 @@
 - 将 GitHub 仓库 `About` 区域的 `Website` 字段补充为公开可访问站点 `https://2320194668.cn`
 - 重写 `docs/releases/v0.1.0.md`，使首发版本说明更接近正式开源项目的 Release Notes 结构
 - 优化 GitHub Issue 提交流程，将使用交流与安全问题引导到更合适的渠道
+- 修复 CI 在干净环境下未生成 Prisma Client 导致的 `server` 构建失败问题
 - 优化 CI 流程，仅围绕 `main` 分支执行，并增加并发控制与手动触发能力
 
 ## [0.1.0] - 2026-03-08

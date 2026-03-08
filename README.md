@@ -210,6 +210,7 @@ pnpm dev
 | `pnpm dev` | 同时启动前后端开发服务 |
 | `pnpm build` | 构建 shared / client / server |
 | `pnpm lint` | 执行 ESLint 检查 |
+| `pnpm db:generate` | 生成 Prisma Client（适用于全新环境或 CI） |
 | `pnpm db:migrate` | 执行本地数据库迁移 |
 | `pnpm db:studio` | 打开 Prisma Studio |
 | `pnpm import:graduate-school-sources` | 在线抓取研招单位官方源 |
