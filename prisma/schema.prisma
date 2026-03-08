@@ -132,15 +132,21 @@ model TagOnProfessor {
 }
 
 model EmailTemplate {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  subject   String
-  content   String
-  category  String   @default("FIRST_CONTACT")
-  isPreset  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  userId           String
+  name             String
+  subject          String
+  content          String
+  category         String   @default("FIRST_CONTACT")
+  sourceType       String   @default("MANUAL")
+  storagePath      String?
+  mimeType         String?
+  fileSize         Int?
+  fileExtension    String?
+  originalFileName String?
+  isPreset         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 }

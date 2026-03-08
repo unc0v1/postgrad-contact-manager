@@ -400,20 +400,92 @@
                 : '-'
             }}
           </div>
+          <div v-if="currentPreviewTemplate?.originalFileName">
+            原文件：{{ currentPreviewTemplate.originalFileName }}
+          </div>
+          <div v-if="currentPreviewTemplate?.fileSize">
+            文件大小：{{ formatFileSize(currentPreviewTemplate.fileSize) }}
+          </div>
         </div>
-        <pre class="template-preview-content">
-{{ currentPreviewTemplate?.content || '暂无可预览内容。你可以点“编辑”补充内容摘要，后续可在此直接查看。' }}
-        </pre>
+        <n-space justify="space-between" align="center" class="template-preview-actions">
+          <n-space :size="8" :wrap="true">
+            <n-tag size="small" type="info" :bordered="false">
+              {{ formatPreviewModeLabel(previewState.mode) }}
+            </n-tag>
+            <n-tag v-if="previewState.sourceType" size="small" :bordered="false">
+              {{ formatSourceTypeLabel(previewState.sourceType) }}
+            </n-tag>
+          </n-space>
+          <n-space :size="8" :wrap="true">
+            <n-button
+              v-if="previewOriginalUrl"
+              size="small"
+              secondary
+              @click="openPreviewOriginalFile"
+            >
+              打开原文件
+            </n-button>
+            <n-button size="small" tertiary @click="handleCopyContent(previewPlainText)">
+              复制内容
+            </n-button>
+          </n-space>
+        </n-space>
+        <n-alert v-if="previewState.notice" type="warning" :show-icon="false">
+          {{ previewState.notice }}
+        </n-alert>
+        <n-spin :show="previewLoading">
+          <div
+            v-if="previewState.mode === 'pdf' && previewOriginalUrl"
+            class="template-preview-frame-wrap"
+          >
+            <iframe
+              :src="previewOriginalUrl"
+              class="template-preview-frame"
+              title="文书 PDF 预览"
+            />
+          </div>
+          <div
+            v-else-if="previewState.mode === 'image' && previewOriginalUrl"
+            class="template-preview-image-wrap"
+          >
+            <img
+              :src="previewOriginalUrl"
+              :alt="currentPreviewTemplate?.name || '文书图片预览'"
+              class="template-preview-image"
+            >
+          </div>
+          <div
+            v-else-if="previewState.mode === 'html' || previewState.mode === 'markdown'"
+            class="template-preview-html"
+            v-html="previewHtml"
+          />
+          <div v-else-if="previewState.mode === 'download'" class="template-preview-empty">
+            <div class="template-preview-empty__title">当前格式暂不支持结构化预览</div>
+            <div class="template-preview-empty__description">
+              可以直接打开原文件查看完整内容，已上传的文件会在新窗口中打开。
+            </div>
+          </div>
+          <div v-else-if="previewState.mode === 'missing'" class="template-preview-empty">
+            <div class="template-preview-empty__title">原始文件不可用</div>
+            <div class="template-preview-empty__description">
+              {{ previewState.notice || '这条记录缺少可访问的原始文件，请重新导入。' }}
+            </div>
+            <pre v-if="previewPlainText.trim()" class="template-preview-content">{{ previewPlainText }}</pre>
+          </div>
+          <pre v-else class="template-preview-content">{{ previewPlainText }}</pre>
+        </n-spin>
       </n-space>
     </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import DOMPurify from 'dompurify'
+import { marked } from 'marked'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useMessage, type FormInst, type FormRules } from 'naive-ui'
 import MarkdownWorkspace from '@/components/MarkdownWorkspace.vue'
-import { templateApi, type TemplatePayload } from '@/api'
+import { templateApi, type TemplatePayload, type TemplatePreviewPayload } from '@/api'
 
 interface TemplateItem {
   id: string
@@ -421,8 +493,25 @@ interface TemplateItem {
   subject: string
   content: string
   category: string
+  sourceType?: string
+  storagePath?: string | null
+  mimeType?: string | null
+  fileSize?: number | null
+  fileExtension?: string | null
+  originalFileName?: string | null
   createdAt: string
   updatedAt: string
+}
+
+interface TemplatePreviewState {
+  mode: TemplatePreviewPayload['mode']
+  content: string
+  assetUrl: string | null
+  notice: string | null
+  mimeType: string | null
+  originalFileName: string | null
+  fileExtension: string | null
+  sourceType: string
 }
 
 interface LocalImportFileEntry {
@@ -448,8 +537,6 @@ const SUPPORTED_IMPORT_EXTENSIONS = new Set([
 ])
 const TEXT_IMPORT_EXTENSIONS = new Set(['.md', '.txt'])
 const MAX_LOCAL_IMPORT_FILE_COUNT = 200
-const MAX_TEXT_PREVIEW_BYTES = 1024 * 1024
-const MAX_TEXT_PREVIEW_LENGTH = 3000
 const ONLINE_DRAFT_STORAGE_KEY = 'template-online-editor-drafts'
 const ONLINE_VERSION_STORAGE_KEY = 'template-online-editor-versions'
 const ONLINE_EDITOR_NEW_KEY = 'NEW_ONLINE_DOC'
@@ -526,7 +613,18 @@ const versionDiffHint = ref('当前版本与所选历史版本差异')
 const versionDiffText = ref('请选择历史版本后查看差异')
 const versionDiffShowOnlyChanges = ref(true)
 const showTemplatePreviewModal = ref(false)
+const previewLoading = ref(false)
 const currentPreviewTemplate = ref<TemplateItem | null>(null)
+const previewState = ref<TemplatePreviewState>({
+  mode: 'text',
+  content: '',
+  assetUrl: null,
+  notice: null,
+  mimeType: null,
+  originalFileName: null,
+  fileExtension: null,
+  sourceType: 'MANUAL',
+})
 const versionDiffBaseForm = ref<OnlineEditorFormModel | null>(null)
 const versionDiffCurrentForm = ref<OnlineEditorFormModel | null>(null)
 const versionDiffStats = ref<VersionDiffStats>({
@@ -567,6 +665,32 @@ const categoryOptions = CATEGORIES.map((item) => ({
 
 const modalTitle = ref('新建文书资料')
 const editorModalTitle = ref('在线新建文书')
+
+const previewHtml = computed(() => {
+  if (previewState.value.mode === 'markdown') {
+    return DOMPurify.sanitize(marked.parse(previewState.value.content || '') as string)
+  }
+
+  if (previewState.value.mode === 'html') {
+    return DOMPurify.sanitize(previewState.value.content || '')
+  }
+
+  return ''
+})
+
+const previewPlainText = computed(() => {
+  if (previewState.value.content.trim()) {
+    return previewState.value.content
+  }
+  return currentPreviewTemplate.value?.content || '暂无可预览内容。'
+})
+
+const previewOriginalUrl = computed(() => {
+  if (currentPreviewTemplate.value?.id && previewState.value.assetUrl) {
+    return templateApi.assetUrl(currentPreviewTemplate.value.id)
+  }
+  return null
+})
 
 const categorySet = new Set<DocumentCategory>(
   CATEGORIES.map((item) => item.value)
@@ -1445,7 +1569,139 @@ function resetImportModalState() {
  * @description 文书预览弹窗关闭后重置状态。
  */
 function resetTemplatePreviewState() {
+  previewLoading.value = false
   currentPreviewTemplate.value = null
+  previewState.value = {
+    mode: 'text',
+    content: '',
+    assetUrl: null,
+    notice: null,
+    mimeType: null,
+    originalFileName: null,
+    fileExtension: null,
+    sourceType: 'MANUAL',
+  }
+}
+
+/**
+ * @description 获取预览模式标签。
+ * @param mode 预览模式
+ * @returns 中文文案
+ */
+function formatPreviewModeLabel(mode: TemplatePreviewPayload['mode']): string {
+  switch (mode) {
+    case 'pdf':
+      return 'PDF 预览'
+    case 'image':
+      return '图片预览'
+    case 'html':
+      return '结构化预览'
+    case 'markdown':
+      return 'Markdown 预览'
+    case 'download':
+      return '原文件打开'
+    case 'missing':
+      return '文件缺失'
+    case 'text':
+    default:
+      return '文本预览'
+  }
+}
+
+/**
+ * @description 获取文书来源标签。
+ * @param sourceType 来源类型
+ * @returns 中文文案
+ */
+function formatSourceTypeLabel(sourceType: string): string {
+  switch (sourceType) {
+    case 'FILE_UPLOAD':
+      return '本地上传'
+    case 'FILE_LINK':
+      return '本地映射'
+    case 'MANUAL':
+      return '手工录入'
+    default:
+      return sourceType || '未知来源'
+  }
+}
+
+/**
+ * @description 拉取文书预览数据。
+ * @param item 文书条目
+ */
+async function fetchTemplatePreview(item: TemplateItem) {
+  const previewId = item.id
+  const fallbackMode: TemplatePreviewPayload['mode'] =
+    item.category === 'ONLINE_DOC' || item.fileExtension?.toLowerCase() === '.md'
+      ? 'markdown'
+      : 'text'
+
+  previewLoading.value = true
+  try {
+    const response = await templateApi.preview(item.id)
+    const payload = (response.data as { data?: TemplatePreviewPayload }).data
+    if (currentPreviewTemplate.value?.id !== previewId) {
+      return
+    }
+
+    if (!payload) {
+      previewState.value = {
+        mode: fallbackMode,
+        content: item.content || '',
+        assetUrl: null,
+        notice: '预览接口未返回可用数据，已回退为摘要预览。',
+        mimeType: item.mimeType || null,
+        originalFileName: item.originalFileName || null,
+        fileExtension: item.fileExtension || null,
+        sourceType: item.sourceType || 'MANUAL',
+      }
+      return
+    }
+
+    previewState.value = {
+      mode: payload.mode,
+      content: payload.content || '',
+      assetUrl: payload.assetUrl || null,
+      notice: payload.notice || null,
+      mimeType: payload.mimeType || item.mimeType || null,
+      originalFileName: payload.originalFileName || item.originalFileName || null,
+      fileExtension: payload.fileExtension || item.fileExtension || null,
+      sourceType: payload.sourceType || item.sourceType || 'MANUAL',
+    }
+  } catch (error) {
+    if (currentPreviewTemplate.value?.id !== previewId) {
+      return
+    }
+
+    previewState.value = {
+      mode: fallbackMode,
+      content: item.content || '',
+      assetUrl: null,
+      notice: '预览加载失败，已回退为摘要预览。',
+      mimeType: item.mimeType || null,
+      originalFileName: item.originalFileName || null,
+      fileExtension: item.fileExtension || null,
+      sourceType: item.sourceType || 'MANUAL',
+    }
+    message.error(getApiErrorMessage(error, '加载文书预览失败'))
+  } finally {
+    if (currentPreviewTemplate.value?.id === previewId) {
+      previewLoading.value = false
+    }
+  }
+}
+
+/**
+ * @description 在新窗口打开原文件。
+ */
+function openPreviewOriginalFile() {
+  if (!previewOriginalUrl.value) {
+    message.warning('当前条目没有可打开的原文件')
+    return
+  }
+
+  window.open(previewOriginalUrl.value, '_blank', 'noopener,noreferrer')
 }
 
 /**
@@ -1582,7 +1838,11 @@ function normalizeImportRelativePath(file: File): string {
  * @returns 路径文本
  */
 function normalizeImportSubject(relativePath: string): string {
-  return `本地文件/${relativePath}`
+  return relativePath
+    .replace(/^本地文件[\\/]+/u, '')
+    .replace(/\\/g, '/')
+    .replace(/^\/+/u, '')
+    .trim()
 }
 
 /**
@@ -1722,57 +1982,18 @@ function clearSelectedImportFiles() {
 }
 
 /**
- * @description 生成本地导入时的内容摘要。
+ * @description 构建本地上传的表单数据。
  * @param entry 导入条目
- * @returns 摘要文本
+ * @param subject 归一化后的相对路径
+ * @returns FormData
  */
-async function buildLocalImportContent(entry: LocalImportFileEntry): Promise<string> {
-  const headerLines = [
-    `来源文件：${entry.relativePath}`,
-    `文件类型：${entry.extensionText}`,
-    `文件大小：${formatFileSize(entry.file.size)}`,
-  ]
-
-  if (!entry.isTextFile) {
-    return `${headerLines.join('\n')}\n\n该文件为二进制文档，请在本地应用中打开原文件查看完整内容。`
-  }
-
-  if (entry.file.size > MAX_TEXT_PREVIEW_BYTES) {
-    return `${headerLines.join('\n')}\n\n文本文件较大，已跳过全文读取，请在本地打开原文件查看。`
-  }
-
-  try {
-    const rawText = await entry.file.text()
-    const trimmed = rawText.trim()
-    if (!trimmed) {
-      return `${headerLines.join('\n')}\n\n文件内容为空。`
-    }
-    const preview = trimmed.length > MAX_TEXT_PREVIEW_LENGTH
-      ? `${trimmed.slice(0, MAX_TEXT_PREVIEW_LENGTH)}\n...(内容已截断)`
-      : trimmed
-    return `${headerLines.join('\n')}\n\n${preview}`
-  } catch {
-    return `${headerLines.join('\n')}\n\n内容读取失败，请在本地打开原文件查看。`
-  }
-}
-
-/**
- * @description 构建本地导入提交载荷。
- * @param entry 导入条目
- * @param subject 归一化后的路径文本
- * @returns 提交载荷
- */
-async function buildLocalImportPayload(
-  entry: LocalImportFileEntry,
-  subject: string
-): Promise<TemplatePayload> {
+function buildLocalUploadFormData(entry: LocalImportFileEntry, subject: string): FormData {
   const fileName = getBaseFileName(entry.file.name).slice(0, 60)
-  return {
-    name: fileName || '未命名文书',
-    category: inferImportCategory(`${entry.relativePath} ${fileName}`),
-    subject,
-    content: await buildLocalImportContent(entry),
-  }
+  const formData = new FormData()
+  formData.append('file', entry.file, entry.file.name)
+  formData.append('relativePath', subject)
+  formData.append('category', inferImportCategory(`${entry.relativePath} ${fileName}`))
+  return formData
 }
 
 /**
@@ -2072,7 +2293,7 @@ async function handleImportFolder() {
   try {
     const existingSubjectSet = new Set(
       templateList.value
-        .map((item) => item.subject.trim())
+        .map((item) => normalizeImportSubject(item.subject || ''))
         .filter((item) => item.length > 0)
     )
 
@@ -2089,8 +2310,8 @@ async function handleImportFolder() {
       }
 
       try {
-        const payload = await buildLocalImportPayload(entry, subject)
-        await templateApi.create(payload)
+        const formData = buildLocalUploadFormData(entry, subject)
+        await templateApi.upload(formData)
         existingSubjectSet.add(subject)
         createdCount += 1
       } catch {
@@ -2128,7 +2349,18 @@ function handleOpenTemplate(item: TemplateItem) {
   }
 
   currentPreviewTemplate.value = item
+  previewState.value = {
+    mode: item.category === 'ONLINE_DOC' || item.fileExtension?.toLowerCase() === '.md' ? 'markdown' : 'text',
+    content: item.content || '',
+    assetUrl: null,
+    notice: null,
+    mimeType: item.mimeType || null,
+    originalFileName: item.originalFileName || null,
+    fileExtension: item.fileExtension || null,
+    sourceType: item.sourceType || 'MANUAL',
+  }
   showTemplatePreviewModal.value = true
+  void fetchTemplatePreview(item)
 }
 
 /**
@@ -2233,6 +2465,123 @@ onMounted(() => {
   gap: 6px;
   font-size: 13px;
   color: var(--n-text-color-2);
+}
+
+.template-preview-actions {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.template-preview-frame-wrap {
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: #ffffff;
+}
+
+.template-preview-frame {
+  display: block;
+  width: 100%;
+  height: min(72vh, 780px);
+  border: 0;
+  background: #ffffff;
+}
+
+.template-preview-image-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.template-preview-image {
+  max-width: 100%;
+  max-height: min(70vh, 760px);
+  object-fit: contain;
+}
+
+.template-preview-html {
+  max-height: min(68vh, 720px);
+  overflow: auto;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: #ffffff;
+  color: #334155;
+  line-height: 1.75;
+}
+
+.template-preview-html :deep(:first-child) {
+  margin-top: 0;
+}
+
+.template-preview-html :deep(:last-child) {
+  margin-bottom: 0;
+}
+
+.template-preview-html :deep(h1),
+.template-preview-html :deep(h2),
+.template-preview-html :deep(h3),
+.template-preview-html :deep(h4) {
+  margin: 1.2em 0 0.55em;
+  color: #0f172a;
+}
+
+.template-preview-html :deep(p),
+.template-preview-html :deep(li),
+.template-preview-html :deep(blockquote) {
+  color: #334155;
+}
+
+.template-preview-html :deep(pre),
+.template-preview-html :deep(code) {
+  font-family: 'Consolas', 'JetBrains Mono', monospace;
+}
+
+.template-preview-html :deep(pre) {
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.template-preview-html :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.template-preview-html :deep(th),
+.template-preview-html :deep(td) {
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  vertical-align: top;
+}
+
+.template-preview-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.template-preview-empty__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.template-preview-empty__description {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #475569;
 }
 
 .template-preview-content {

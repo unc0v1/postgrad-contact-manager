@@ -155,11 +155,31 @@ export interface TemplatePayload {
   content?: string
 }
 
+export interface TemplatePreviewPayload {
+  mode: 'text' | 'markdown' | 'html' | 'pdf' | 'image' | 'download' | 'missing'
+  content: string
+  assetUrl: string | null
+  notice: string | null
+  mimeType: string | null
+  originalFileName: string | null
+  fileExtension: string | null
+  sourceType: string
+}
+
 export const templateApi = {
   list: (params?: { category?: string }) =>
     request.get('/api/templates', { params }),
   detail: (id: string) =>
     request.get(`/api/templates/${id}`),
+  preview: (id: string) =>
+    request.get<ApiResponse<TemplatePreviewPayload>>(`/api/templates/${id}/preview`),
+  assetUrl: (id: string) => `/api/templates/${id}/asset`,
+  upload: (formData: FormData) =>
+    request.post('/api/templates/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
   create: (data: TemplatePayload) =>
     request.post('/api/templates', data),
   update: (id: string, data: Partial<TemplatePayload>) =>

@@ -166,6 +166,14 @@ const noteId = computed(() => (
   typeof route.params.id === 'string' ? route.params.id.trim() : ''
 ))
 
+const initialProfessorId = computed(() => {
+  const rawProfessorId = route.query.professorId
+  if (Array.isArray(rawProfessorId)) {
+    return typeof rawProfessorId[0] === 'string' ? rawProfessorId[0].trim() : ''
+  }
+  return typeof rawProfessorId === 'string' ? rawProfessorId.trim() : ''
+})
+
 const isEditMode = computed(() => noteId.value.length > 0)
 const pageHeading = computed(() => (
   isEditMode.value ? '继续写笔记' : '新建笔记'
@@ -257,10 +265,16 @@ function confirmLeaveIfDirty(): boolean {
  * @description 获取导师下拉选项。
  */
 async function fetchProfessorOptions() {
-  const response = await professorApi.list()
-  const professorList = Array.isArray(response.data?.data)
-    ? (response.data.data as ProfessorOptionItem[])
-    : []
+  const response = await professorApi.list({
+    page: 1,
+    pageSize: 1000,
+  })
+  const payload = response.data as {
+    data?: {
+      list?: ProfessorOptionItem[]
+    }
+  }
+  const professorList = Array.isArray(payload.data?.list) ? payload.data.list : []
 
   professorOptions.value = professorList.map((item) => ({
     label: `${item.name}（${item.university}）`,
@@ -274,6 +288,7 @@ async function fetchProfessorOptions() {
 async function fetchNoteDetail() {
   if (!isEditMode.value) {
     resetNoteForm()
+    noteForm.professorId = initialProfessorId.value
     lastSavedAt.value = ''
     syncSavedSnapshot()
     return

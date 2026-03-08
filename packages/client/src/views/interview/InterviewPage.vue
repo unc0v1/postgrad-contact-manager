@@ -97,7 +97,7 @@
             <n-input
               v-model:value="interviewForm.preparationNotes"
               type="textarea"
-              :rows="3"
+              :rows="4"
               placeholder="请输入备注"
             />
           </n-form-item-gi>
@@ -118,33 +118,68 @@
       v-model:show="showLogModal"
       preset="card"
       :title="logModalTitle"
-      style="width: 760px"
+      style="width: min(920px, 94vw)"
       :mask-closable="false"
       @after-leave="resetLogModalState"
     >
       <n-spin :show="logLoading">
-        <div class="max-h-68 overflow-auto">
+        <div class="log-history-wrap">
           <n-empty v-if="logList.length === 0" description="暂无面试日志" />
           <n-space v-else vertical :size="12">
             <n-card
               v-for="log in logList"
               :key="log.id"
               size="small"
-              :title="formatDateTime(log.createdAt)"
+              class="log-history-card"
             >
-              <div class="text-sm">{{ getLogPreview(log.content) }}</div>
+              <template #header>
+                <div class="log-history-card__title">
+                  <span>{{ formatDateTime(log.createdAt) }}</span>
+                  <span v-if="log.updatedAt && log.updatedAt !== log.createdAt" class="log-history-card__subtitle">
+                    最近更新：{{ formatDateTime(log.updatedAt) }}
+                  </span>
+                </div>
+              </template>
+              <template #header-extra>
+                <n-space :size="8">
+                  <n-button size="small" tertiary @click="handleEditLog(log)">
+                    编辑
+                  </n-button>
+                  <n-button size="small" tertiary type="error" @click="handleDeleteLog(log)">
+                    删除
+                  </n-button>
+                </n-space>
+              </template>
+
+              <div class="log-history-card__content">{{ log.content }}</div>
+              <n-space v-if="log.selfRating || log.mood" :size="8" :wrap="true" class="log-history-card__tags">
+                <n-tag v-if="log.selfRating" size="small" :bordered="false" type="warning">
+                  自评 {{ log.selfRating }}/5
+                </n-tag>
+                <n-tag v-if="log.mood" size="small" :bordered="false">
+                  {{ log.mood }}
+                </n-tag>
+              </n-space>
+              <div v-if="log.questionsAsked" class="log-history-card__meta">
+                <span class="log-history-card__meta-label">被问问题</span>
+                <span>{{ log.questionsAsked }}</span>
+              </div>
+              <div v-if="log.keyTakeaways" class="log-history-card__meta">
+                <span class="log-history-card__meta-label">关键收获</span>
+                <span>{{ log.keyTakeaways }}</span>
+              </div>
             </n-card>
           </n-space>
         </div>
 
-        <n-divider>新增日志</n-divider>
+        <n-divider>{{ logEditorTitle }}</n-divider>
 
         <n-form ref="logFormRef" :model="logForm" :rules="logRules" label-placement="top">
           <n-form-item label="日志内容" path="content">
             <n-input
               v-model:value="logForm.content"
               type="textarea"
-              :rows="3"
+              :rows="4"
               placeholder="请输入面试日志内容"
             />
           </n-form-item>
@@ -178,11 +213,16 @@
       </n-spin>
 
       <template #footer>
-        <div class="flex justify-end gap-3">
-          <n-button @click="showLogModal = false">关闭</n-button>
-          <n-button type="primary" :loading="logSubmitting" @click="handleCreateLog">
-            新增日志
-          </n-button>
+        <div class="log-form-actions">
+          <n-space :size="8">
+            <n-button v-if="editingLogId" @click="handleCancelLogEdit">
+              取消编辑
+            </n-button>
+            <n-button @click="showLogModal = false">关闭</n-button>
+            <n-button type="primary" :loading="logSubmitting" @click="handleCreateLog">
+              {{ logSubmitText }}
+            </n-button>
+          </n-space>
         </div>
       </template>
     </n-modal>
@@ -239,6 +279,7 @@ interface InterviewLogItem {
   questionsAsked: string | null
   keyTakeaways: string | null
   createdAt: string
+  updatedAt: string
 }
 
 interface InterviewFormModel {
@@ -274,6 +315,7 @@ const professorOptions = ref<SelectOption[]>([])
 const showInterviewModal = ref(false)
 const showLogModal = ref(false)
 const editingInterviewId = ref<string | null>(null)
+const editingLogId = ref<string | null>(null)
 const currentLogInterview = ref<InterviewItem | null>(null)
 const logList = ref<InterviewLogItem[]>([])
 
@@ -361,6 +403,9 @@ const logModalTitle = computed(() => {
   return `${professorName} - 面试日志`
 })
 
+const logEditorTitle = computed(() => (editingLogId.value ? '编辑日志' : '新增日志'))
+const logSubmitText = computed(() => (editingLogId.value ? '保存修改' : '新增日志'))
+
 function isInterviewStatus(value: string): value is InterviewStatus {
   return value === 'SCHEDULED' || value === 'COMPLETED' || value === 'CANCELLED'
 }
@@ -400,14 +445,6 @@ function getStatusType(status: string): TagProps['type'] {
   return statusTagTypeMap[status as InterviewStatus] ?? 'default'
 }
 
-function getLogPreview(content: string): string {
-  const text = content.trim()
-  if (text.length <= 100) {
-    return text
-  }
-  return `${text.slice(0, 100)}...`
-}
-
 function resetInterviewForm() {
   interviewForm.professorId = null
   interviewForm.scheduledAt = null
@@ -432,6 +469,7 @@ function resetInterviewModalState() {
 }
 
 function resetLogModalState() {
+  editingLogId.value = null
   currentLogInterview.value = null
   logList.value = []
   logFormRef.value?.restoreValidation()
@@ -612,12 +650,61 @@ async function fetchLogs(interviewId: string) {
   }
 }
 
+function fillLogForm(log: InterviewLogItem) {
+  logForm.content = log.content
+  logForm.selfRating = log.selfRating
+  logForm.mood = log.mood ?? ''
+  logForm.questionsAsked = log.questionsAsked ?? ''
+  logForm.keyTakeaways = log.keyTakeaways ?? ''
+}
+
 async function handleOpenLogModal(row: InterviewItem) {
   currentLogInterview.value = row
+  editingLogId.value = null
   resetLogForm()
   logFormRef.value?.restoreValidation()
   showLogModal.value = true
   await fetchLogs(row.id)
+}
+
+function handleEditLog(log: InterviewLogItem) {
+  editingLogId.value = log.id
+  fillLogForm(log)
+  logFormRef.value?.restoreValidation()
+}
+
+function handleCancelLogEdit() {
+  editingLogId.value = null
+  resetLogForm()
+  logFormRef.value?.restoreValidation()
+}
+
+function handleDeleteLog(log: InterviewLogItem) {
+  if (!currentLogInterview.value) {
+    return
+  }
+
+  dialog.warning({
+    title: '确认删除日志',
+    content: '删除后不可恢复，确认继续吗？',
+    positiveText: '确认删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      if (!currentLogInterview.value) {
+        return
+      }
+      try {
+        await interviewApi.removeLog(currentLogInterview.value.id, log.id)
+        message.success('日志删除成功')
+        if (editingLogId.value === log.id) {
+          handleCancelLogEdit()
+        }
+        await fetchLogs(currentLogInterview.value.id)
+      } catch (error) {
+        message.error(getApiErrorMessage(error, '删除日志失败'))
+      }
+    },
+  })
 }
 
 async function handleCreateLog() {
@@ -633,19 +720,27 @@ async function handleCreateLog() {
 
   logSubmitting.value = true
   try {
-    await interviewApi.createLog(currentLogInterview.value.id, {
+    const payload = {
       content: logForm.content.trim(),
       selfRating: logForm.selfRating,
       mood: toNullable(logForm.mood),
       questionsAsked: toNullable(logForm.questionsAsked),
       keyTakeaways: toNullable(logForm.keyTakeaways),
-    })
-    message.success('日志新增成功')
-    resetLogForm()
-    logFormRef.value?.restoreValidation()
+    }
+
+    if (editingLogId.value) {
+      await interviewApi.updateLog(currentLogInterview.value.id, editingLogId.value, payload)
+      message.success('日志更新成功')
+    } else {
+      await interviewApi.createLog(currentLogInterview.value.id, payload)
+      message.success('日志新增成功')
+    }
+
+    handleCancelLogEdit()
     await fetchLogs(currentLogInterview.value.id)
   } catch (error) {
-    message.error(getApiErrorMessage(error, '新增日志失败'))
+    const fallback = editingLogId.value ? '更新日志失败' : '新增日志失败'
+    message.error(getApiErrorMessage(error, fallback))
   } finally {
     logSubmitting.value = false
   }
@@ -781,5 +876,61 @@ onMounted(() => {
 
 .interview-toolbar {
   margin-bottom: 14px;
+}
+
+.log-history-wrap {
+  max-height: min(42vh, 420px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.log-history-card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+}
+
+.log-history-card__title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.log-history-card__subtitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.log-history-card__content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.8;
+  color: #0f172a;
+}
+
+.log-history-card__tags {
+  margin-top: 10px;
+}
+
+.log-history-card__meta {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.log-history-card__meta-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.log-form-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

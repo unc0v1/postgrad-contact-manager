@@ -68,6 +68,11 @@ export class ProfessorService {
         },
         interviews: {
           orderBy: { scheduledAt: 'desc' },
+          include: {
+            logs: {
+              orderBy: { createdAt: 'desc' },
+            },
+          },
         },
         communications: {
           orderBy: { sentAt: 'desc' },

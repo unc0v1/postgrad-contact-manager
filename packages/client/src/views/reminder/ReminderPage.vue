@@ -360,10 +360,18 @@ async function fetchList() {
  */
 async function fetchProfessors() {
   try {
-    const res = await professorApi.list()
-    const arr = Array.isArray(res.data?.data) ? res.data.data : []
-    professorOptions.value = arr.map((p: any) => ({
-      label: p.name + '（' + p.university + '）',
+    const res = await professorApi.list({
+      page: 1,
+      pageSize: 1000,
+    })
+    const payload = res.data as {
+      data?: {
+        list?: Array<{ id: string; name: string; university: string }>
+      }
+    }
+    const arr = Array.isArray(payload.data?.list) ? payload.data.list : []
+    professorOptions.value = arr.map((p) => ({
+      label: `${p.name}（${p.university}）`,
       value: p.id,
     }))
   } catch {}

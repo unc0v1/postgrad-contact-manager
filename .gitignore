@@ -17,7 +17,6 @@ build/
 *.db-journal
 data/*.db
 data/*.db-journal
-prisma/migrations/
 
 # IDE
 .vscode/
