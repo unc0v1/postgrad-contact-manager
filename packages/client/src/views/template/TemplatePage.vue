@@ -24,8 +24,48 @@
     </div>
 
     <n-card class="app-card">
-      <n-spin :show="loading">
+      <n-spin :show="loading || batchDeleting">
         <div class="template-content-wrap">
+          <div v-if="templateList.length > 0" class="template-batch-toolbar">
+            <n-space justify="space-between" align="center" :wrap="true">
+              <n-space align="center" :size="12" :wrap="true">
+                <n-checkbox
+                  :checked="isAllVisibleTemplatesSelected"
+                  :indeterminate="isTemplateSelectionPartial"
+                  @update:checked="handleToggleSelectAllTemplates"
+                >
+                  全选当前结果
+                </n-checkbox>
+                <span class="template-batch-summary">
+                  已选 {{ selectedTemplateCount }} 项，共 {{ templateList.length }} 项
+                </span>
+              </n-space>
+              <n-space :size="8" :wrap="true">
+                <n-button
+                  size="small"
+                  tertiary
+                  :disabled="selectedTemplateCount === 0"
+                  @click="handleClearTemplateSelection"
+                >
+                  清空选择
+                </n-button>
+                <n-popconfirm @positive-click="handleBatchDeleteTemplates">
+                  <template #trigger>
+                    <n-button
+                      size="small"
+                      type="error"
+                      secondary
+                      :disabled="selectedTemplateCount === 0"
+                    >
+                      批量删除
+                    </n-button>
+                  </template>
+                  确认删除已选中的 {{ selectedTemplateCount }} 条文书资料吗？
+                </n-popconfirm>
+              </n-space>
+            </n-space>
+          </div>
+
           <n-empty
             v-if="!loading && templateList.length === 0"
             description="暂无文书资料，点击“新建资料”或“导入本地文书”开始创建"
@@ -40,10 +80,21 @@
             :y-gap="16"
           >
             <n-gi v-for="item in templateList" :key="item.id">
-              <n-card size="small" hoverable class="template-item-card">
+              <n-card
+                size="small"
+                hoverable
+                class="template-item-card"
+                :class="{ 'template-item-card--selected': selectedTemplateSet.has(item.id) }"
+              >
                 <div class="template-item-header">
-                  <div class="truncate text-base font-medium">
-                    {{ item.name }}
+                  <div class="template-item-header-main">
+                    <n-checkbox
+                      :checked="selectedTemplateSet.has(item.id)"
+                      @update:checked="handleToggleTemplateSelection(item.id, $event)"
+                    />
+                    <div class="truncate text-base font-medium template-item-title">
+                      {{ item.name }}
+                    </div>
                   </div>
                   <n-tag size="small" type="info" :bordered="false">
                     {{ getCategoryLabel(item.category) }}
@@ -600,6 +651,7 @@ const loading = ref(false)
 const saving = ref(false)
 const editorSaving = ref(false)
 const importing = ref(false)
+const batchDeleting = ref(false)
 const showModal = ref(false)
 const showImportModal = ref(false)
 const showEditorModal = ref(false)
@@ -633,6 +685,7 @@ const versionDiffStats = ref<VersionDiffStats>({
   unchanged: 0,
 })
 const templateList = ref<TemplateItem[]>([])
+const selectedTemplateIds = ref<string[]>([])
 const activeCategory = ref<CategoryFilter>('ALL')
 const editingTemplateId = ref<string | null>(null)
 const editingOnlineTemplateId = ref<string | null>(null)
@@ -691,6 +744,16 @@ const previewOriginalUrl = computed(() => {
   }
   return null
 })
+
+const selectedTemplateSet = computed(() => new Set(selectedTemplateIds.value))
+const selectedTemplateCount = computed(() => selectedTemplateIds.value.length)
+const isAllVisibleTemplatesSelected = computed(() => (
+  templateList.value.length > 0
+  && templateList.value.every((item) => selectedTemplateSet.value.has(item.id))
+))
+const isTemplateSelectionPartial = computed(() => (
+  selectedTemplateCount.value > 0 && !isAllVisibleTemplatesSelected.value
+))
 
 const categorySet = new Set<DocumentCategory>(
   CATEGORIES.map((item) => item.value)
@@ -1705,6 +1768,14 @@ function openPreviewOriginalFile() {
 }
 
 /**
+ * @description 按当前可见列表裁剪已选文书。
+ */
+function syncSelectedTemplatesWithVisibleList() {
+  const visibleIdSet = new Set(templateList.value.map((item) => item.id))
+  selectedTemplateIds.value = selectedTemplateIds.value.filter((id) => visibleIdSet.has(id))
+}
+
+/**
  * @description 根据分类加载文书资料列表。
  */
 async function fetchTemplateList() {
@@ -1717,11 +1788,45 @@ async function fetchTemplateList() {
     const response = await templateApi.list(params)
     const list = (response.data as { data?: unknown }).data
     templateList.value = Array.isArray(list) ? (list as TemplateItem[]) : []
+    syncSelectedTemplatesWithVisibleList()
   } catch (error) {
     message.error(getApiErrorMessage(error, '获取文书资料失败'))
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * @description 切换文书选择状态。
+ * @param id 文书 ID
+ * @param checked 是否选中
+ */
+function handleToggleTemplateSelection(id: string, checked: boolean) {
+  if (checked) {
+    if (!selectedTemplateSet.value.has(id)) {
+      selectedTemplateIds.value = [...selectedTemplateIds.value, id]
+    }
+    return
+  }
+
+  selectedTemplateIds.value = selectedTemplateIds.value.filter((item) => item !== id)
+}
+
+/**
+ * @description 全选或取消全选当前结果。
+ * @param checked 是否全选
+ */
+function handleToggleSelectAllTemplates(checked: boolean) {
+  selectedTemplateIds.value = checked
+    ? templateList.value.map((item) => item.id)
+    : []
+}
+
+/**
+ * @description 清空当前选择。
+ */
+function handleClearTemplateSelection() {
+  selectedTemplateIds.value = []
 }
 
 /**
@@ -1734,6 +1839,7 @@ function handleCategoryChange(value: string | number) {
   }
 
   activeCategory.value = value as CategoryFilter
+  handleClearTemplateSelection()
   void fetchTemplateList()
 }
 
@@ -2411,16 +2517,62 @@ async function handleCopyContent(content: string) {
 }
 
 /**
- * @description 删除条目并刷新列表。
+ * @description 删除单条文书资料并刷新列表。
  * @param id 条目 ID
  */
 async function handleDeleteTemplate(id: string) {
   try {
     await templateApi.remove(id)
+    selectedTemplateIds.value = selectedTemplateIds.value.filter((item) => item !== id)
+    if (currentPreviewTemplate.value?.id === id) {
+      showTemplatePreviewModal.value = false
+      resetTemplatePreviewState()
+    }
     message.success('文书资料删除成功')
     await fetchTemplateList()
   } catch (error) {
     message.error(getApiErrorMessage(error, '删除文书资料失败，请稍后重试'))
+  }
+}
+
+/**
+ * @description 批量删除当前已选文书资料。
+ */
+async function handleBatchDeleteTemplates() {
+  if (batchDeleting.value || selectedTemplateIds.value.length === 0) {
+    return
+  }
+
+  batchDeleting.value = true
+  const ids = [...selectedTemplateIds.value]
+  let successCount = 0
+  let failedCount = 0
+
+  try {
+    for (const id of ids) {
+      try {
+        await templateApi.remove(id)
+        successCount += 1
+      } catch {
+        failedCount += 1
+      }
+    }
+
+    selectedTemplateIds.value = selectedTemplateIds.value.filter((id) => !ids.includes(id))
+    if (currentPreviewTemplate.value?.id && ids.includes(currentPreviewTemplate.value.id)) {
+      showTemplatePreviewModal.value = false
+      resetTemplatePreviewState()
+    }
+    await fetchTemplateList()
+
+    if (failedCount === 0) {
+      message.success(`已删除 ${successCount} 条文书资料`)
+      return
+    }
+
+    message.warning(`批量删除完成：成功 ${successCount} 条，失败 ${failedCount} 条`)
+  } finally {
+    batchDeleting.value = false
   }
 }
 
@@ -2457,6 +2609,19 @@ onMounted(() => {
 
 .template-content-wrap {
   min-height: 220px;
+}
+
+.template-batch-toolbar {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.9));
+}
+
+.template-batch-summary {
+  font-size: 13px;
+  color: var(--n-text-color-2);
 }
 
 .template-preview-meta {
@@ -2651,6 +2816,12 @@ onMounted(() => {
 
 .template-item-card {
   border: 1px solid rgba(148, 163, 184, 0.2);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.template-item-card--selected {
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 14px 32px rgba(59, 130, 246, 0.12);
 }
 
 .template-item-header {
@@ -2658,6 +2829,19 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.template-item-header-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.template-item-title {
+  min-width: 0;
+  flex: 1;
 }
 
 .template-path-line {
