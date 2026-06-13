@@ -43,7 +43,7 @@
     "vue-eslint-parser": "^9.4.3"
   },
   "dependencies": {
-    "@prisma/client": "^6.4.0",
+    "@prisma/client": "^7.5.0",
     "prisma": "^6.4.0"
   },
   "engines": {
